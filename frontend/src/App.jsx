@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { Search, RefreshCw, Database, Upload, X, CheckCircle, AlertCircle, Lock } from 'lucide-react'
+import { 
+  Search, RefreshCw, Database, Upload, X, CheckCircle, 
+  AlertCircle, Lock, Package, Users, CheckSquare, Clock 
+} from 'lucide-react'
 
 const API_BASE = 'http://localhost:8000/api'
 
@@ -8,6 +11,7 @@ export default function App() {
   const [items, setItems] = useState([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [stats, setStats] = useState(null)
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState('')
@@ -22,7 +26,17 @@ export default function App() {
   const [uploadResult, setUploadResult] = useState(null)
   const [uploadError, setUploadError] = useState('')
 
-  // Fetch data dari FastAPI
+  // Fetch Stats dari FastAPI
+  const fetchStats = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/stats`)
+      setStats(res.data)
+    } catch (err) {
+      console.error('Gagal mengambil statistik:', err)
+    }
+  }
+
+  // Fetch Items dari FastAPI
   const fetchItems = async () => {
     setLoading(true)
     try {
@@ -35,13 +49,17 @@ export default function App() {
       setItems(res.data.items)
       setTotal(res.data.total)
     } catch (err) {
-      console.error('Gagal mengambil data:', err)
+      console.error('Gagal mengambil data items:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  // Auto fetch saat filter berubah (debounce search)
+  // Load awal & auto-fetch filter
+  useEffect(() => {
+    fetchStats()
+  }, [])
+
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchItems()
@@ -52,12 +70,8 @@ export default function App() {
   // Handle Upload Excel
   const handleUpload = async (e) => {
     e.preventDefault()
-    if (!selectedFile) {
-      setUploadError('Pilih file Excel terlebih dahulu.')
-      return
-    }
-    if (!adminToken) {
-      setUploadError('Masukkan Admin Token.')
+    if (!selectedFile || !adminToken) {
+      setUploadError('Lengkapi token dan pilih file Excel.')
       return
     }
 
@@ -76,7 +90,8 @@ export default function App() {
         },
       })
       setUploadResult(res.data)
-      fetchItems() // Refresh tabel data
+      fetchItems()
+      fetchStats() // Refresh statistik setelah import berhasil
     } catch (err) {
       if (err.response) {
         setUploadError(err.response.data.detail || 'Gagal mengunggah file.')
@@ -111,11 +126,6 @@ export default function App() {
           </div>
 
           <div className="flex items-center space-x-3">
-            <div className="hidden sm:block text-xs font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
-              Total Items: <span className="text-indigo-600 font-bold">{total}</span>
-            </div>
-
-            {/* Admin Upload Button */}
             <button
               onClick={() => setIsModalOpen(true)}
               className="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-medium px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 shadow-sm"
@@ -129,9 +139,66 @@ export default function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* Widget Statistik Dashboard */}
+        {stats && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {/* Card 1: Total Items */}
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-slate-500">Total Items / Master</p>
+                <h3 className="text-2xl font-bold text-slate-900 mt-1">{stats.total}</h3>
+                <p className="text-[11px] text-indigo-600 font-medium mt-0.5">{stats.plu} PLU Unik</p>
+              </div>
+              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                <Package className="w-6 h-6" />
+              </div>
+            </div>
+
+            {/* Card 2: Total Supplier */}
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-slate-500">Total Supplier</p>
+                <h3 className="text-2xl font-bold text-slate-900 mt-1">{stats.suppliers}</h3>
+                <p className="text-[11px] text-slate-400 font-medium mt-0.5">Terdaftar aktif</p>
+              </div>
+              <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                <Users className="w-6 h-6" />
+              </div>
+            </div>
+
+            {/* Card 3: Status Aktif vs Inaktif */}
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-slate-500">Status Active</p>
+                <h3 className="text-2xl font-bold text-emerald-600 mt-1">{stats.active}</h3>
+                <p className="text-[11px] text-rose-500 font-medium mt-0.5">{stats.inactive} Tidak Aktif</p>
+              </div>
+              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                <CheckSquare className="w-6 h-6" />
+              </div>
+            </div>
+
+            {/* Card 4: Perubahan Hari Ini */}
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-slate-500">Update Hari Ini</p>
+                <h3 className="text-2xl font-bold text-slate-900 mt-1">
+                  {stats.new_today + stats.changed_today}
+                </h3>
+                <p className="text-[11px] text-amber-600 font-medium mt-0.5">
+                  +{stats.new_today} Baru / {stats.changed_today} Diubah
+                </p>
+              </div>
+              <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                <Clock className="w-6 h-6" />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Filter Controls */}
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row gap-3">
-          {/* Search Box */}
           <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -143,7 +210,6 @@ export default function App() {
             />
           </div>
 
-          {/* Filter KUU */}
           <div className="w-full md:w-48">
             <select
               value={selectedKuu}
@@ -157,7 +223,6 @@ export default function App() {
             </select>
           </div>
 
-          {/* Filter Status */}
           <div className="w-full md:w-48">
             <select
               value={selectedActive}
@@ -170,9 +235,8 @@ export default function App() {
             </select>
           </div>
 
-          {/* Refresh Button */}
           <button
-            onClick={fetchItems}
+            onClick={() => { fetchItems(); fetchStats(); }}
             className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
             title="Refresh Data"
           >
@@ -238,8 +302,7 @@ export default function App() {
       {/* Modal Upload Excel Admin */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200">
-            {/* Modal Header */}
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Upload className="w-5 h-5 text-indigo-600" />
@@ -253,11 +316,9 @@ export default function App() {
               </button>
             </div>
 
-            {/* Modal Body */}
             <form onSubmit={handleUpload} className="p-6 space-y-4">
-              {/* Token Input */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5 items-center gap-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
                   <Lock className="w-3.5 h-3.5 text-slate-400" />
                   Admin Token
                 </label>
@@ -271,7 +332,6 @@ export default function App() {
                 />
               </div>
 
-              {/* File Input */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   File Excel (.xlsx)
@@ -285,7 +345,6 @@ export default function App() {
                 />
               </div>
 
-              {/* Error Alert */}
               {uploadError && (
                 <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
@@ -293,7 +352,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* Success Result Alert */}
               {uploadResult && (
                 <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs space-y-1">
                   <div className="flex items-center gap-1.5 font-semibold text-emerald-900">
@@ -307,7 +365,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* Submit Button */}
               <div className="pt-2 flex justify-end gap-2">
                 <button
                   type="button"
