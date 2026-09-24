@@ -1,6 +1,7 @@
-fastapi
-uvicorn
-psycopg[binary]
-python-dotenv
-openpyxl
-python-multipart
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+pwdlib[argon2,bcrypt]>=0.2.0
+python-jose[cryptography]>=3.3.0
+openpyxl>=3.1.2
+pydantic>=2.6.0
+python-multipart>=0.0.9
