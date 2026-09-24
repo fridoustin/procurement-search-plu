@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import axios from 'axios'
-import { Lock, User, KeyRound, X, AlertCircle, Loader2 } from 'lucide-react'
+import { Lock, User, KeyRound, X, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react'
 
 const API_BASE = 'http://localhost:8000/api'
 
 export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -18,7 +19,6 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
     setError('')
 
     try {
-      // Backend FastAPI menerima OAuth2 Form / JSON
       const res = await axios.post(`${API_BASE}/login`, {
         username,
         password,
@@ -27,9 +27,9 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
       const token = res.data.access_token || res.data.token
       onLoginSuccess(token)
       
-      // Reset form
       setUsername('')
       setPassword('')
+      setShowPassword(false)
     } catch (err) {
       if (err.response) {
         setError(err.response.data.detail || 'Username atau password salah.')
@@ -97,13 +97,24 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full text-xs pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:border-[#305D9F] focus:ring-1 focus:ring-[#305D9F] transition"
+                className="w-full text-xs pl-9 pr-10 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:border-[#305D9F] focus:ring-1 focus:ring-[#305D9F] transition"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+              >
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
             </div>
           </div>
 
@@ -118,7 +129,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
             <button
               type="submit"
               disabled={loading}
-              className="bg-[#305D9F] hover:bg-[#254b82] active:scale-95 text-white text-xs font-bold px-5 py-2 rounded-lg transition-all flex items-center gap-2 shadow-sm disabled:opacity-50"
+              className="bg-[#305D9F] hover:bg-[#254b82] active:scale-95 text-white text-xs font-bold px-5 py-2 rounded-lg transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                 <>
