@@ -6,16 +6,16 @@ export default function DataTable({ items, loading, total, page, setPage, limit 
   return (
     <div className="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden flex-1 flex flex-col min-h-0">
       {/* Scrollable Table Content */}
-      <div className="overflow-y-auto flex-1 h-full">
-        <table className="w-full text-left border-collapse">
+      <div className="overflow-x-auto overflow-y-auto flex-1 h-full">
+        <table className="w-full text-left border-collapse min-w-225">
           <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 z-1 shadow-xs">
             <tr className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              <th className="py-3 px-4">PLU</th>
-              <th className="py-3 px-4">Nama Barang</th>
-              <th className="py-3 px-4">Supplier</th>
-              <th className="py-3 px-4">Dept</th>
-              <th className="py-3 px-4">KUU Cabang</th>
-              <th className="py-3 px-4 text-center">Status</th>
+              <th className="py-3.5 px-4 w-[12%] whitespace-nowrap">PLU</th>
+              <th className="py-3.5 px-4 w-[35%]">Nama Barang</th>
+              <th className="py-3.5 px-4 w-[23%] text-center whitespace-nowrap">Supplier</th>
+              <th className="py-3.5 px-4 w-[12%] text-center whitespace-nowrap">Dept</th>
+              <th className="py-3.5 px-4 w-[10%] text-center whitespace-nowrap">KUU Cabang</th>
+              <th className="py-3.5 px-4 w-[8%] text-center whitespace-nowrap">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-sm">
@@ -34,16 +34,24 @@ export default function DataTable({ items, loading, total, page, setPage, limit 
             ) : (
               items.map((item, idx) => (
                 <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                  <td className="py-2.5 px-4 font-mono font-bold text-indigo-600">{item.plu}</td>
-                  <td className="py-2.5 px-4 font-semibold text-slate-900">{item.name}</td>
-                  <td className="py-2.5 px-4 text-slate-600 font-medium">{item.supplier}</td>
-                  <td className="py-2.5 px-4 text-slate-500 text-xs font-medium">{item.dept || '-'}</td>
-                  <td className="py-2.5 px-4 text-slate-600 text-xs font-mono font-bold">
+                  <td className="py-3 px-4 font-mono font-bold text-indigo-600 whitespace-nowrap">
+                    {item.plu}
+                  </td>
+                  <td className="py-3 px-4 font-semibold text-slate-900 leading-snug">
+                    {item.name}
+                  </td>
+                  <td className="py-3 px-4 text-slate-600 font-medium text-center whitespace-nowrap">
+                    {item.supplier}
+                  </td>
+                  <td className="py-3 px-4 text-slate-500 text-xs font-medium text-center whitespace-nowrap">
+                    {item.dept || '-'}
+                  </td>
+                  <td className="py-3 px-4 text-slate-600 text-xs font-mono font-bold text-center whitespace-nowrap">
                     <span className="bg-blue-50 text-[#305D9F] px-2 py-0.5 rounded border border-blue-100">
                       {item.kuu || '-'}
                     </span>
                   </td>
-                  <td className="py-2.5 px-4 text-center">
+                  <td className="py-3 px-4 text-center whitespace-nowrap">
                     <span
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
                         item.active
@@ -61,7 +69,7 @@ export default function DataTable({ items, loading, total, page, setPage, limit 
         </table>
       </div>
 
-      {/* Pagination Bar Footer */}
+      {/* Pagination Footer */}
       <div className="bg-slate-50 border-t border-slate-200 px-4 py-2.5 flex items-center justify-between shrink-0">
         <p className="text-xs text-slate-500 font-medium">
           Menampilkan <span className="font-bold text-slate-800">{items.length}</span> dari{' '}
