@@ -3,12 +3,26 @@ import io
 import os
 
 from fastapi import FastAPI, Header, HTTPException, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from psycopg.rows import dict_row
 from database import db
 from importer import load, upsert
 
 app = FastAPI()
+
+# Konfigurasi CORS agar React (Vite) bisa berkomunikasi dengan FastAPI
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")  # kosong = upload dimatikan
 MAX_XLSX = 10 * 1024 * 1024
@@ -69,7 +83,7 @@ def import_excel(file: UploadFile, x_admin_token: str = Header("")):
         raise HTTPException(400, "File bukan .xlsx yang valid")
     with db() as c:  # satu transaksi, gagal = rollback
         return {**upsert(c, rows), "errors": errors}
-    
+
 # Harus terakhir: hasil `npm run build` dilayani dari sini, rute /api tetap menang.
 DIST = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 if os.path.isdir(DIST):
