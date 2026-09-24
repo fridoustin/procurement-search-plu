@@ -7,9 +7,10 @@ import StatsWidget from './components/StatsWidget'
 import FilterBar from './components/FilterBar'
 import DataTable from './components/DataTable'
 import ImportModal from './components/ImportModal'
+import LoginModal from './components/LoginModal'
 
 const API_BASE = 'http://localhost:8000/api'
-const PAGE_LIMIT = 20 // Pilihan batas data per halaman
+const PAGE_LIMIT = 20
 
 export default function App() {
   const [items, setItems] = useState([])
@@ -26,9 +27,12 @@ export default function App() {
   const [selectedKuu, setSelectedKuu] = useState('')
   const [selectedActive, setSelectedActive] = useState('')
 
-  // Admin Modal States
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [adminToken, setAdminToken] = useState('')
+  // Admin Auth & Modal States
+  const [adminToken, setAdminToken] = useState(() => localStorage.getItem('admin_token') || '')
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+
+  // Upload States
   const [selectedFile, setSelectedFile] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [uploadResult, setUploadResult] = useState(null)
@@ -85,17 +89,23 @@ export default function App() {
     return () => clearInterval(interval)
   }, [])
 
-  // Fetch data tiap kali page atau filter berubah (dengan debounce)
+  // Fetch data tiap kali page atau filter berubah
   useEffect(() => {
     const timer = setTimeout(() => fetchItems(), 300)
     return () => clearTimeout(timer)
   }, [page, searchQuery, selectedKuu, selectedActive])
 
+  // Handle Logout
+  const handleLogout = () => {
+    localStorage.removeItem('admin_token')
+    setAdminToken('')
+  }
+
   // Handle Excel Upload
   const handleUpload = async (e) => {
     e.preventDefault()
-    if (!selectedFile || !adminToken) {
-      setUploadError('Lengkapi token dan pilih file Excel.')
+    if (!selectedFile) {
+      setUploadError('Pilih file Excel terlebih dahulu.')
       return
     }
 
@@ -110,7 +120,7 @@ export default function App() {
       const res = await axios.post(`${API_BASE}/import`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
-          'x-admin-token': adminToken,
+          'Authorization': `Bearer ${adminToken}`,
         },
       })
       setUploadResult(res.data)
@@ -118,7 +128,12 @@ export default function App() {
       fetchStats()
     } catch (err) {
       if (err.response) {
-        setUploadError(err.response.data.detail || 'Gagal mengunggah file.')
+        if (err.response.status === 401) {
+          setUploadError('Sesi berakhir. Silakan login kembali.')
+          handleLogout()
+        } else {
+          setUploadError(err.response.data.detail || 'Gagal mengunggah file.')
+        }
       } else {
         setUploadError('Gagal terhubung ke server.')
       }
@@ -127,8 +142,8 @@ export default function App() {
     }
   }
 
-  const closeModal = () => {
-    setIsModalOpen(false)
+  const closeImportModal = () => {
+    setIsImportModalOpen(false)
     setSelectedFile(null)
     setUploadResult(null)
     setUploadError('')
@@ -136,7 +151,12 @@ export default function App() {
 
   return (
     <div className="h-screen bg-slate-100 text-slate-800 flex flex-col overflow-hidden">
-      <Header onOpenModal={() => setIsModalOpen(true)} />
+      <Header 
+        isAdminLoggedIn={Boolean(adminToken)}
+        onOpenLogin={() => setIsLoginModalOpen(true)}
+        onOpenImport={() => setIsImportModalOpen(true)}
+        onLogout={handleLogout}
+      />
 
       <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 flex flex-col min-h-0">
         <RealtimeBanner lastUpdated={lastUpdated} currentTime={currentTime} />
@@ -162,11 +182,21 @@ export default function App() {
         />
       </main>
 
+      {/* MODAL LOGIN */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onLoginSuccess={(token) => {
+          setAdminToken(token)
+          localStorage.setItem('admin_token', token)
+          setIsLoginModalOpen(false)
+        }}
+      />
+
+      {/* MODAL IMPORT EXCEL */}
       <ImportModal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        adminToken={adminToken}
-        setAdminToken={setAdminToken}
+        isOpen={isImportModalOpen}
+        onClose={closeImportModal}
         setSelectedFile={setSelectedFile}
         handleUpload={handleUpload}
         uploading={uploading}
