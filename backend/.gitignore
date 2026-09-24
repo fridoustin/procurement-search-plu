@@ -1,0 +1,16 @@
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# Environment Variables (Sangat penting agar password/token tidak bocor ke GitHub!)
+.env
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE Configs
+.vscode/
+.idea/
