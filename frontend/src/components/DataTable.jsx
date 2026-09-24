@@ -1,6 +1,11 @@
-export default function DataTable({ items, loading }) {
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+
+export default function DataTable({ items, loading, total, page, setPage, limit }) {
+  const totalPages = Math.ceil(total / limit) || 1
+
   return (
     <div className="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden flex-1 flex flex-col min-h-0">
+      {/* Scrollable Table Content */}
       <div className="overflow-y-auto flex-1 h-full">
         <table className="w-full text-left border-collapse">
           <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 z-1 shadow-xs">
@@ -54,6 +59,36 @@ export default function DataTable({ items, loading }) {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination Bar Footer */}
+      <div className="bg-slate-50 border-t border-slate-200 px-4 py-2.5 flex items-center justify-between shrink-0">
+        <p className="text-xs text-slate-500 font-medium">
+          Menampilkan <span className="font-bold text-slate-800">{items.length}</span> dari{' '}
+          <span className="font-bold text-slate-800">{total}</span> total barang
+        </p>
+
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setPage((p) => Math.max(p - 1, 1))}
+            disabled={page === 1 || loading}
+            className="p-1.5 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-xs"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
+          <span className="text-xs font-bold text-slate-700 px-2">
+            Halaman {page} dari {totalPages}
+          </span>
+
+          <button
+            onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+            disabled={page >= totalPages || loading}
+            className="p-1.5 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-xs"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   )

@@ -9,6 +9,7 @@ import DataTable from './components/DataTable'
 import ImportModal from './components/ImportModal'
 
 const API_BASE = 'http://localhost:8000/api'
+const PAGE_LIMIT = 20 // Pilihan batas data per halaman
 
 export default function App() {
   const [items, setItems] = useState([])
@@ -19,7 +20,8 @@ export default function App() {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [lastUpdated, setLastUpdated] = useState(new Date())
 
-  // Filter States
+  // Pagination & Filter States
+  const [page, setPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedKuu, setSelectedKuu] = useState('')
   const [selectedActive, setSelectedActive] = useState('')
@@ -45,7 +47,10 @@ export default function App() {
   const fetchItems = async () => {
     setLoading(true)
     try {
-      const params = {}
+      const params = {
+        limit: PAGE_LIMIT,
+        offset: (page - 1) * PAGE_LIMIT,
+      }
       if (searchQuery) params.q = searchQuery
       if (selectedKuu) params.kuu = selectedKuu
       if (selectedActive !== '') params.active = selectedActive === 'true'
@@ -60,6 +65,11 @@ export default function App() {
     }
   }
 
+  // Reset ke halaman 1 saat filter pencarian berubah
+  useEffect(() => {
+    setPage(1)
+  }, [searchQuery, selectedKuu, selectedActive])
+
   // Ticking Clock
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
@@ -69,19 +79,17 @@ export default function App() {
   // Initial load & Polling Data (30s)
   useEffect(() => {
     fetchStats()
-    fetchItems()
     const interval = setInterval(() => {
       fetchStats()
-      fetchItems()
     }, 30000)
     return () => clearInterval(interval)
   }, [])
 
-  // Debounced search / filter fetch
+  // Fetch data tiap kali page atau filter berubah (dengan debounce)
   useEffect(() => {
     const timer = setTimeout(() => fetchItems(), 300)
     return () => clearTimeout(timer)
-  }, [searchQuery, selectedKuu, selectedActive])
+  }, [page, searchQuery, selectedKuu, selectedActive])
 
   // Handle Excel Upload
   const handleUpload = async (e) => {
@@ -144,7 +152,14 @@ export default function App() {
           loading={loading}
           onRefresh={() => { fetchItems(); fetchStats(); }}
         />
-        <DataTable items={items} loading={loading} />
+        <DataTable 
+          items={items} 
+          loading={loading} 
+          total={total}
+          page={page}
+          setPage={setPage}
+          limit={PAGE_LIMIT}
+        />
       </main>
 
       <ImportModal
