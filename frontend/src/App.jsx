@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 
-import Header from './components/header'
-import RealtimeBanner from './components/realtimebanner'
+import Header from './components/Header'
+import RealtimeBanner from './components/Realtimebanner'
 import StatsWidget from './components/StatsWidget'
 import FilterBar from './components/FilterBar'
 import DataTable from './components/DataTable'
