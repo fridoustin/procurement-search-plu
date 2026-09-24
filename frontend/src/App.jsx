@@ -12,6 +12,7 @@ export default function App() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [stats, setStats] = useState(null)
+  const [lastUpdated, setLastUpdated] = useState(new Date())
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState('')
@@ -31,6 +32,7 @@ export default function App() {
     try {
       const res = await axios.get(`${API_BASE}/stats`)
       setStats(res.data)
+      setLastUpdated(new Date())
     } catch (err) {
       console.error('Gagal mengambil statistik:', err)
     }
@@ -55,11 +57,20 @@ export default function App() {
     }
   }
 
-  // Load awal & auto-fetch filter
+  // Initial load & Polling Real-time (Auto-refresh setiap 30 detik)
   useEffect(() => {
     fetchStats()
+    fetchItems()
+
+    const interval = setInterval(() => {
+      fetchStats()
+      fetchItems()
+    }, 30000)
+
+    return () => clearInterval(interval)
   }, [])
 
+  // Auto-fetch saat filter berubah (debounce search)
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchItems()
@@ -91,7 +102,7 @@ export default function App() {
       })
       setUploadResult(res.data)
       fetchItems()
-      fetchStats() // Refresh statistik setelah import berhasil
+      fetchStats()
     } catch (err) {
       if (err.response) {
         setUploadError(err.response.data.detail || 'Gagal mengunggah file.')
@@ -126,6 +137,15 @@ export default function App() {
           </div>
 
           <div className="flex items-center space-x-3">
+            {/* Real-time Status Badge */}
+            <div className="hidden md:flex items-center gap-2 bg-slate-100 text-slate-600 text-xs px-3 py-1.5 rounded-full border border-slate-200">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>Live • {lastUpdated.toLocaleTimeString()}</span>
+            </div>
+
             <button
               onClick={() => setIsModalOpen(true)}
               className="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-medium px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 shadow-sm"
@@ -199,6 +219,7 @@ export default function App() {
 
         {/* Filter Controls */}
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row gap-3">
+          {/* Input Search */}
           <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -210,19 +231,25 @@ export default function App() {
             />
           </div>
 
+          {/* Filter KUU Dinamis */}
           <div className="w-full md:w-48">
             <select
               value={selectedKuu}
               onChange={(e) => setSelectedKuu(e.target.value)}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
             >
-              <option value="">Semua KUU</option>
-              <option value="KUU1">KUU1</option>
-              <option value="KUU2">KUU2</option>
-              <option value="KUU3">KUU3</option>
+              <option value="">Semua KUU Cabang</option>
+              {stats?.per_kuu
+                ?.filter((k) => k.name)
+                .map((k, idx) => (
+                  <option key={idx} value={k.name}>
+                    {k.name} ({k.n} item)
+                  </option>
+                ))}
             </select>
           </div>
 
+          {/* Filter Status */}
           <div className="w-full md:w-48">
             <select
               value={selectedActive}
@@ -235,10 +262,11 @@ export default function App() {
             </select>
           </div>
 
+          {/* Refresh Button */}
           <button
             onClick={() => { fetchItems(); fetchStats(); }}
             className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
-            title="Refresh Data"
+            title="Refresh Manual"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -254,7 +282,7 @@ export default function App() {
                   <th className="py-3.5 px-4">Nama Barang</th>
                   <th className="py-3.5 px-4">Supplier</th>
                   <th className="py-3.5 px-4">Dept</th>
-                  <th className="py-3.5 px-4">KUU</th>
+                  <th className="py-3.5 px-4">KUU Cabang</th>
                   <th className="py-3.5 px-4 text-center">Status</th>
                 </tr>
               </thead>
@@ -318,7 +346,7 @@ export default function App() {
 
             <form onSubmit={handleUpload} className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 items-center gap-1">
                   <Lock className="w-3.5 h-3.5 text-slate-400" />
                   Admin Token
                 </label>
