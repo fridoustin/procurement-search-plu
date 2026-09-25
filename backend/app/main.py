@@ -40,12 +40,6 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # Token berlaku 1 hari
 # Inisialisasi password hasher (Bcrypt via pwdlib)
 password_hash = PasswordHash((BcryptHasher(),))
 
-# Credential Admin (Atur via env atau fallback ke default ini)
-ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD_HASH = os.environ.get(
-    "ADMIN_PASSWORD_HASH", password_hash.hash("adminpassword123")
-)
-
 
 class LoginRequest(BaseModel):
     username: str
@@ -129,16 +123,22 @@ def stats():
 
 @app.post("/api/login")
 def login(credentials: LoginRequest):
-    if credentials.username != ADMIN_USERNAME or not password_hash.verify(
-        credentials.password, ADMIN_PASSWORD_HASH
-    ):
+    # Query data admin dari database PostgreSQL
+    with db(row_factory=dict_row) as c:
+        admin = c.execute(
+            "SELECT id, username, hashed_password FROM admins WHERE username = %s",
+            (credentials.username,)
+        ).fetchone()
+
+    # Verifikasi keberadaan admin dan validitas password hash
+    if not admin or not password_hash.verify(credentials.password, admin["hashed_password"]):
         raise HTTPException(401, "Username atau password salah")
 
-    access_token = create_access_token(data={"sub": credentials.username})
+    access_token = create_access_token(data={"sub": admin["username"]})
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "username": credentials.username,
+        "username": admin["username"],
     }
 
 
