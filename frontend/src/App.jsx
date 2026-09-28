@@ -189,7 +189,6 @@ export default function App() {
         onLoginSuccess={(token) => {
           setAdminToken(token)
           localStorage.setItem('admin_token', token)
-          setIsLoginModalOpen(false)
         }}
       />
 
