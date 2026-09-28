@@ -37,7 +37,7 @@ export default function FilterBar({
             ?.filter((k) => k.name)
             .map((k, idx) => (
               <option key={idx} value={k.name}>
-                {k.name} ({k.n})
+                {k.name}
               </option>
             ))}
         </select>
