@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 
 import Header from './components/Header'
-import RealtimeBanner from './components/Realtimebanner'
+import RealtimeBanner from './components/RealtimeBanner'
 import StatsWidget from './components/StatsWidget'
 import FilterBar from './components/FilterBar'
 import DataTable from './components/DataTable'
@@ -19,7 +19,6 @@ export default function App() {
   const [stats, setStats] = useState(null)
   
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [lastUpdated, setLastUpdated] = useState(new Date())
 
   // Pagination & Filter States
   const [page, setPage] = useState(1)
@@ -42,7 +41,6 @@ export default function App() {
     try {
       const res = await axios.get(`${API_BASE}/stats`)
       setStats(res.data)
-      setLastUpdated(new Date())
     } catch (err) {
       console.error('Gagal mengambil statistik:', err)
     }
@@ -77,7 +75,7 @@ export default function App() {
   // Ticking Clock
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-    return () => clearInterval(timer)
+    return () => clearTimeout(timer)
   }, [])
 
   // Initial load & Polling Data (30s)
@@ -159,7 +157,10 @@ export default function App() {
       />
 
       <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 flex flex-col min-h-0">
-        <RealtimeBanner lastUpdated={lastUpdated} currentTime={currentTime} />
+        <RealtimeBanner 
+          lastImportedAt={stats?.last_update} 
+          currentTime={currentTime} 
+        />
         <StatsWidget stats={stats} />
         <FilterBar
           searchQuery={searchQuery}
