@@ -1,17 +1,22 @@
+import io
+from datetime import date
+
+import openpyxl
 from fastapi import APIRouter, Query
+from fastapi.responses import Response
+from openpyxl.styles import Font, PatternFill
 from psycopg.rows import dict_row
 from app.database import get_db
 
 router = APIRouter(prefix="/api", tags=["Items"])
 
-@router.get("/items")
-def get_items(
-    q: str = "",
-    kuu: str = "",
-    active: bool | None = None,
-    limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0),
-):
+COLS = "plu, name, supplier, dept, active, kuu, harga_sebelum, harga_update"
+ORDER = "ORDER BY name, plu, supplier"
+EXPORT_MAX = 50_000
+
+
+def _where(q: str, kuu: str, active: bool | None):
+    """Filter yang sama dipakai tabel dan export, supaya hasilnya selalu identik."""
     where, args = [], []
     if words := q.split():
         where.append("(plu = %s OR name ILIKE ALL (%s))")
@@ -22,16 +27,66 @@ def get_items(
     if active is not None:
         where.append("active = %s")
         args.append(active)
-        
-    w = "WHERE " + " AND ".join(where) if where else ""
+    return ("WHERE " + " AND ".join(where) if where else ""), args
+
+
+@router.get("/items")
+def get_items(
+    q: str = "",
+    kuu: str = "",
+    active: bool | None = None,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    w, args = _where(q, kuu, active)
     with get_db(row_factory=dict_row) as c:
         total = c.execute(f"SELECT count(*) AS n FROM items {w}", args).fetchone()["n"]
         rows = c.execute(
-            f"SELECT plu, name, supplier, dept, active, kuu, harga_sebelum, harga_update FROM items {w} "
-            "ORDER BY name, plu, supplier LIMIT %s OFFSET %s",
+            f"SELECT {COLS} FROM items {w} {ORDER} LIMIT %s OFFSET %s",
             [*args, limit, offset],
         ).fetchall()
     return {"total": total, "items": rows}
+
+
+def _to_xlsx(rows) -> bytes:
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "PLU"
+    ws.append(["PLU", "NAMA BARANG", "SUPPLIER", "GROUP DEPT", "STATUS", "KUU",
+               "HARGA SEBELUM", "HARGA UPDATE"])
+    for c in ws[1]:
+        c.font = Font(bold=True, color="FFFFFF")
+        c.fill = PatternFill("solid", fgColor="C0312D")
+    for r in rows:
+        ws.append([r["plu"], r["name"], r["supplier"], r["dept"],
+                   "AKTIF" if r["active"] else "TIDAK AKTIF", r["kuu"],
+                   r["harga_sebelum"], r["harga_update"]])
+        ws.cell(ws.max_row, 1).number_format = "@"  # PLU tetap teks: 01001 tidak jadi 1001
+        for col in (7, 8):
+            ws.cell(ws.max_row, col).number_format = "#,##0"
+    for col, w in zip("ABCDEFGH", [14, 45, 38, 14, 14, 9, 16, 16]):
+        ws.column_dimensions[col].width = w
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = ws.dimensions
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+@router.get("/items/export")
+def export_items(q: str = "", kuu: str = "", active: bool | None = None):
+    """Export SEMUA baris yang cocok dengan filter (bukan hanya halaman yang tampil)."""
+    w, args = _where(q, kuu, active)
+    with get_db(row_factory=dict_row) as c:
+        rows = c.execute(
+            f"SELECT {COLS} FROM items {w} {ORDER} LIMIT %s", [*args, EXPORT_MAX]
+        ).fetchall()
+    return Response(
+        _to_xlsx(rows),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="plu_{date.today()}.xlsx"'},
+    )
+
 
 @router.get("/stats")
 def get_stats():

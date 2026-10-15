@@ -16,6 +16,7 @@ export default function App() {
   const [items, setItems] = useState([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [stats, setStats] = useState(null)
   
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -46,17 +47,23 @@ export default function App() {
     }
   }
 
+  // Filter yang sedang aktif; dipakai tabel dan export supaya selalu sama
+  const filterParams = () => {
+    const params = {}
+    if (searchQuery) params.q = searchQuery
+    if (selectedKuu) params.kuu = selectedKuu
+    if (selectedActive !== '') params.active = selectedActive === 'true'
+    return params
+  }
+
   const fetchItems = async () => {
     setLoading(true)
     try {
       const params = {
+        ...filterParams(),
         limit: PAGE_LIMIT,
         offset: (page - 1) * PAGE_LIMIT,
       }
-      if (searchQuery) params.q = searchQuery
-      if (selectedKuu) params.kuu = selectedKuu
-      if (selectedActive !== '') params.active = selectedActive === 'true'
-
       const res = await axios.get(`${API_BASE}/items`, { params })
       setItems(res.data.items)
       setTotal(res.data.total)
@@ -64,6 +71,28 @@ export default function App() {
       console.error('Gagal mengambil data items:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Export semua baris sesuai filter (bukan hanya halaman yang tampil)
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const res = await axios.get(`${API_BASE}/items/export`, {
+        params: filterParams(),
+        responseType: 'blob',
+      })
+      const url = URL.createObjectURL(res.data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `plu_${new Date().toLocaleDateString('sv-SE')}.xlsx` // YYYY-MM-DD, waktu lokal
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Gagal export:', err)
+      alert('Gagal mengekspor data. Coba lagi.')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -75,7 +104,7 @@ export default function App() {
   // Ticking Clock
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-    return () => clearTimeout(timer)
+    return () => clearInterval(timer)
   }, [])
 
   // Initial load & Polling Data (30s)
@@ -180,6 +209,8 @@ export default function App() {
           page={page}
           setPage={setPage}
           limit={PAGE_LIMIT}
+          onExport={handleExport}
+          exporting={exporting}
         />
       </main>
 

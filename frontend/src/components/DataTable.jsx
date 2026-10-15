@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, Loader2 } from 'lucide-react'
 
 const rupiah = (v) =>
   v == null ? '-' : new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(v)
@@ -42,7 +42,7 @@ const COLUMNS = [
   { label: 'Harga Update', th: 'text-center', td: 'text-center font-bold text-slate-900 tabular-nums', render: (i) => rupiah(i.harga_update) },
 ]
 
-export default function DataTable({ items, loading, total, page, setPage, limit }) {
+export default function DataTable({ items, loading, total, page, setPage, limit, onExport, exporting }) {
   const totalPages = Math.ceil(total / limit) || 1
   const empty = (msg) => (
     <tr>
@@ -81,10 +81,21 @@ export default function DataTable({ items, loading, total, page, setPage, limit 
       </div>
 
       <div className="bg-slate-50 border-t border-slate-200 px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between shrink-0">
-        <p className="text-[11px] sm:text-xs text-slate-500 font-medium">
-          Menampilkan <span className="font-bold text-slate-800">{items.length}</span> dari{' '}
-          <span className="font-bold text-slate-800">{total}</span> total
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-[11px] sm:text-xs text-slate-500 font-medium">
+            Menampilkan <span className="font-bold text-slate-800">{items.length}</span> dari{' '}
+            <span className="font-bold text-slate-800">{total}</span> total
+          </p>
+          <button
+            onClick={onExport}
+            disabled={exporting || loading || total === 0}
+            title="Unduh semua data sesuai filter saat ini"
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] sm:text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-xs"
+          >
+            {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            <span>{exporting ? 'Mengunduh...' : 'Export Excel'}</span>
+          </button>
+        </div>
         <div className="flex items-center space-x-1.5 sm:space-x-2">
           <button
             onClick={() => setPage((p) => Math.max(p - 1, 1))}

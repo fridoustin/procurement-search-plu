@@ -27,6 +27,11 @@ export default function ImportModal({
     }
   }, [uploadResult, uploadError]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Modal ditutup -> kosongkan pilihan (parent juga mengosongkan selectedFile)
+  useEffect(() => {
+    if (!isOpen) setFile(null)
+  }, [isOpen])
+
   if (!isOpen) return null
 
   const tooBig = file && file.size > MAX_BYTES
