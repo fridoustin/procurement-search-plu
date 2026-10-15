@@ -27,7 +27,7 @@ def get_items(
     with get_db(row_factory=dict_row) as c:
         total = c.execute(f"SELECT count(*) AS n FROM items {w}", args).fetchone()["n"]
         rows = c.execute(
-            f"SELECT plu, name, supplier, dept, active, kuu FROM items {w} "
+            f"SELECT plu, name, supplier, dept, active, kuu, harga_sebelum, harga_update FROM items {w} "
             "ORDER BY name, plu, supplier LIMIT %s OFFSET %s",
             [*args, limit, offset],
         ).fetchall()
