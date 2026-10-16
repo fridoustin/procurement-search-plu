@@ -75,17 +75,17 @@ export default function App() {
   }
 
   // Export semua baris sesuai filter (bukan hanya halaman yang tampil)
-  const handleExport = async () => {
+  const handleExport = async (bulan = '') => {
     setExporting(true)
     try {
       const res = await axios.get(`${API_BASE}/items/export`, {
-        params: filterParams(),
+        params: { ...filterParams(), ...(bulan && { bulan }) },
         responseType: 'blob',
       })
       const url = URL.createObjectURL(res.data)
       const a = document.createElement('a')
       a.href = url
-      a.download = `plu_${new Date().toLocaleDateString('sv-SE')}.xlsx` // YYYY-MM-DD, waktu lokal
+      a.download = `plu_${bulan || new Date().toLocaleDateString('sv-SE')}.xlsx`
       a.click()
       URL.revokeObjectURL(url)
     } catch (err) {

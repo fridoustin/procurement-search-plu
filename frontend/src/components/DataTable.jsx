@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { ChevronLeft, ChevronRight, Download, Loader2 } from 'lucide-react'
 
 const rupiah = (v) =>
@@ -44,6 +45,8 @@ const COLUMNS = [
 
 export default function DataTable({ items, loading, total, page, setPage, limit, onExport, exporting }) {
   const totalPages = Math.ceil(total / limit) || 1
+  const [exportOpen, setExportOpen] = useState(false)
+  const [bulan, setBulan] = useState('') // 'YYYY-MM' atau '' = semua
   const empty = (msg) => (
     <tr>
       <td colSpan={COLUMNS.length} className="text-center py-8 sm:py-12 text-slate-400 text-xs sm:text-sm">
@@ -86,15 +89,46 @@ export default function DataTable({ items, loading, total, page, setPage, limit,
             Menampilkan <span className="font-bold text-slate-800">{items.length}</span> dari{' '}
             <span className="font-bold text-slate-800">{total}</span> total
           </p>
-          <button
-            onClick={onExport}
-            disabled={exporting || loading || total === 0}
-            title="Unduh semua data sesuai filter saat ini"
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] sm:text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-xs"
-          >
-            {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-            <span>{exporting ? 'Mengunduh...' : 'Export Excel'}</span>
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setExportOpen((o) => !o)}
+              disabled={exporting || loading}
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] sm:text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-xs"
+            >
+              {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+              <span>{exporting ? 'Mengunduh...' : 'Export Excel'}</span>
+            </button>
+            {exportOpen && (
+              <div className="absolute bottom-full left-0 mb-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-3 space-y-2 z-10">
+                <label className="block text-[11px] font-semibold text-slate-700">Periode (opsional)</label>
+                <input
+                  type="month"
+                  value={bulan}
+                  onChange={(e) => setBulan(e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs"
+                />
+                <p className="text-[10px] text-slate-400 leading-snug">
+                  {bulan
+                    ? 'Hanya item yang terakhir diubah di bulan ini, sesuai filter saat ini.'
+                    : 'Kosong = semua data sesuai filter saat ini.'}
+                </p>
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    onClick={() => setExportOpen(false)}
+                    className="px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={async () => { await onExport(bulan); setExportOpen(false) }}
+                    className="px-3 py-1 text-xs font-bold text-white bg-[#305D9F] hover:bg-[#254b82] rounded-lg cursor-pointer"
+                  >
+                    Unduh
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex items-center space-x-1.5 sm:space-x-2">
           <button
