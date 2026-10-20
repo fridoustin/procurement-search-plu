@@ -45,7 +45,7 @@ const COLUMNS = [
   { label: 'Harga Update', th: 'text-center', td: 'text-center font-bold text-slate-900 tabular-nums', render: (i) => rupiah(i.harga_update) },
 ]
 
-export default function DataTable({ items, loading, total, page, setPage, limit, onExport, exporting }) {
+export default function DataTable({ items, loading, total, page, setPage, limit, onExport, exporting, isAdmin }) {
   const totalPages = Math.ceil(total / limit) || 1
   const [exportOpen, setExportOpen] = useState(false)
   const empty = (msg) => (
@@ -90,6 +90,7 @@ export default function DataTable({ items, loading, total, page, setPage, limit,
             Menampilkan <span className="font-bold text-slate-800">{items.length}</span> dari{' '}
             <span className="font-bold text-slate-800">{total}</span> total
           </p>
+          {isAdmin && (
           <button
             onClick={() => setExportOpen(true)}
             disabled={exporting || loading}
@@ -98,6 +99,7 @@ export default function DataTable({ items, loading, total, page, setPage, limit,
             {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
             <span>{exporting ? 'Mengunduh...' : 'Export Excel'}</span>
           </button>
+          )}
         </div>
         <div className="flex items-center space-x-1.5 sm:space-x-2">
           <button
@@ -121,7 +123,7 @@ export default function DataTable({ items, loading, total, page, setPage, limit,
       </div>
 
       <ExportModal
-        isOpen={exportOpen}
+        isOpen={exportOpen && isAdmin}
         onClose={() => setExportOpen(false)}
         onExport={onExport}
         exporting={exporting}

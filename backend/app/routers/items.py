@@ -2,10 +2,11 @@ import io
 from datetime import date, timedelta
 
 import openpyxl
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from openpyxl.styles import Font, PatternFill
 from psycopg.rows import dict_row
+from app.auth import verify_admin_token
 from app.database import get_db
 
 router = APIRouter(prefix="/api", tags=["Items"])
@@ -94,7 +95,14 @@ def _to_xlsx(rows) -> bytes:
 
 
 @router.get("/items/export")
-def export_items(q: str = "", kuu: str = "", active: bool | None = None, dari: str = "", sampai: str = ""):
+def export_items(
+    q: str = "",
+    kuu: str = "",
+    active: bool | None = None,
+    dari: str = "",
+    sampai: str = "",
+    _admin: str = Depends(verify_admin_token),  # hanya admin yang sudah login
+):
     """Export SEMUA baris yang cocok dengan filter (bukan hanya halaman yang tampil)."""
     w, args = _where(q, kuu, active, dari, sampai)
     with get_db(row_factory=dict_row) as c:

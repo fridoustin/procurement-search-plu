@@ -80,6 +80,7 @@ export default function App() {
     try {
       const res = await axios.get(`${API_BASE}/items/export`, {
         params: { ...filterParams(), ...(dari && { dari, sampai }) },
+        headers: { Authorization: `Bearer ${adminToken}` },
         responseType: 'blob',
       })
       const url = URL.createObjectURL(res.data)
@@ -90,7 +91,12 @@ export default function App() {
       URL.revokeObjectURL(url)
     } catch (err) {
       console.error('Gagal export:', err)
-      alert('Gagal mengekspor data. Coba lagi.')
+      if (err.response?.status === 401) {
+        alert('Sesi berakhir. Silakan login kembali.')
+        handleLogout()
+      } else {
+        alert('Gagal mengekspor data. Coba lagi.')
+      }
     } finally {
       setExporting(false)
     }
@@ -211,6 +217,7 @@ export default function App() {
           limit={PAGE_LIMIT}
           onExport={handleExport}
           exporting={exporting}
+          isAdmin={Boolean(adminToken)}
         />
       </main>
 
