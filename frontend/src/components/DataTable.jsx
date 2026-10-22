@@ -2,6 +2,22 @@ import { useState } from 'react'
 import ExportModal from './ExportModal'
 import { ChevronLeft, ChevronRight, Download, Loader2 } from 'lucide-react'
 
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+// Menyorot setiap kata pencarian di dalam teks (tidak peka huruf besar/kecil)
+function Highlight({ text, query }) {
+  const words = query.trim().split(/\s+/).filter(Boolean).sort((a, b) => b.length - a.length)
+  if (!words.length || !text) return text
+  const re = new RegExp(`(${words.map(escapeRe).join('|')})`, 'gi')
+  return text.split(re).map((part, i) =>
+    i % 2 === 1 ? (
+      <mark key={i} className="bg-yellow-200 text-inherit rounded-sm px-0.5">{part}</mark>
+    ) : (
+      part
+    )
+  )
+}
+
 const rupiah = (v) =>
   v == null ? '-' : new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(v)
 
@@ -10,8 +26,8 @@ const TD = 'py-2 px-2.5 sm:py-3 sm:px-4 whitespace-nowrap text-xs sm:text-sm'
 
 // Tambah kolom baru = tambah 1 baris di sini (header + cara render).
 const COLUMNS = [
-  { label: 'PLU', th: 'text-left', td: 'font-mono font-bold text-indigo-600', render: (i) => i.plu },
-  { label: 'Nama Barang', th: 'text-left', td: 'font-semibold text-slate-900', render: (i) => i.name },
+  { label: 'PLU', th: 'text-left', td: 'font-mono font-bold text-indigo-600', render: (i, q) => <Highlight text={i.plu} query={q.trim() === i.plu ? i.plu : ''} /> },
+  { label: 'Nama Barang', th: 'text-left', td: 'font-semibold text-slate-900', render: (i, q) => <Highlight text={i.name} query={q} /> },
   {
     label: 'Status',
     th: 'text-center',
@@ -45,7 +61,7 @@ const COLUMNS = [
   { label: 'Harga Update', th: 'text-center', td: 'text-center font-bold text-slate-900 tabular-nums', render: (i) => rupiah(i.harga_update) },
 ]
 
-export default function DataTable({ items, loading, total, page, setPage, limit, onExport, exporting, isAdmin }) {
+export default function DataTable({ items, loading, total, page, setPage, limit, onExport, exporting, isAdmin, searchQuery = '' }) {
   const totalPages = Math.ceil(total / limit) || 1
   const [exportOpen, setExportOpen] = useState(false)
   const empty = (msg) => (
@@ -76,7 +92,7 @@ export default function DataTable({ items, loading, total, page, setPage, limit,
                 : items.map((item) => (
                     <tr key={`${item.plu}|${item.supplier}|${item.kuu}`} className="hover:bg-slate-50 transition-colors">
                       {COLUMNS.map((c) => (
-                        <td key={c.label} className={`${TD} ${c.td}`}>{c.render(item)}</td>
+                        <td key={c.label} className={`${TD} ${c.td}`}>{c.render(item, searchQuery)}</td>
                       ))}
                     </tr>
                   ))}

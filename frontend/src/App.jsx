@@ -218,6 +218,7 @@ export default function App() {
           onExport={handleExport}
           exporting={exporting}
           isAdmin={Boolean(adminToken)}
+          searchQuery={searchQuery}
         />
       </main>
 
