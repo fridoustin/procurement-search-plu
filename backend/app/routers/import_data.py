@@ -14,13 +14,13 @@ def import_excel(
 ):
     data = file.file.read(MAX_XLSX_SIZE + 1)
     if len(data) > MAX_XLSX_SIZE:
-        raise HTTPException(413, "File terlalu besar (maks 10 MB)")
+        raise HTTPException(413, "File terlalu besar (maks 20 MB)")
     try:
         rows, errors = load(io.BytesIO(data))
     except ValueError as e:
         raise HTTPException(400, str(e))
     except Exception:
-        raise HTTPException(400, "File bukan .xlsx yang valid")
+        raise HTTPException(400, "File bukan .xlsx/.csv yang valid")
 
     with get_db() as c:
         return {**upsert(c, rows), "errors": errors}

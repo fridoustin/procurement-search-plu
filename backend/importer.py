@@ -1,8 +1,11 @@
+import csv
+import io
 import re
 from decimal import Decimal
 import openpyxl
 
 # Header Excel -> field. Beberapa nama diterima supaya format lama & baru sama-sama bisa.
+# Dicocokkan lewat NAMA HEADER, bukan urutan -> kolom lain bebas diselipkan/ditambah.
 ALIASES = {
     "plu": ["PLU"],
     "name": ["NAMA ITEM", "NAMA BARANG"],
@@ -39,11 +42,27 @@ def _price(v):
     return Decimal(re.sub(r"\D", "", s))
 
 
+def _csv_rows(data: bytes):
+    try:
+        text = data.decode("utf-8-sig")  # utf-8, BOM dibuang
+    except UnicodeDecodeError:
+        text = data.decode("cp1252")  # CSV dari Excel Windows
+    first = text.splitlines()[0] if text else ""
+    delim = max([",", ";", "\t", "|"], key=first.count)  # pemisah = yang paling banyak di baris header
+    return csv.reader(io.StringIO(text, newline=""), delimiter=delim)
+
+
+def _sheet_rows(file_stream):
+    """Baris-baris data. .xlsx (file zip, diawali "PK") dibaca dengan openpyxl; selain itu dianggap CSV."""
+    data = file_stream.read()
+    if data[:2] == b"PK":
+        return openpyxl.load_workbook(io.BytesIO(data), data_only=True).active.iter_rows(values_only=True)
+    return _csv_rows(data)
+
+
 def load(file_stream):
     """Baca Excel master item. Mengembalikan (rows, errors)."""
-    wb = openpyxl.load_workbook(file_stream, data_only=True)
-    sheet = wb.active
-    it = sheet.iter_rows(values_only=True)
+    it = _sheet_rows(file_stream)
     header = [str(h).strip().upper() if h is not None else "" for h in next(it, [])]
     col = {f: header.index(n) for f, names in ALIASES.items() for n in names[::-1] if n in header}
     if missing := [f for f in REQUIRED if f not in col]:
@@ -55,6 +74,8 @@ def load(file_stream):
 
     def text(row, field):
         v = raw(row, field)
+        if isinstance(v, float) and v.is_integer():
+            v = int(v)  # PLU angka: 1001.0 -> "1001", bukan "1001.0"
         return str(v).strip() if v is not None else ""
 
     rows, errors = [], []
@@ -128,7 +149,6 @@ def upsert(conn, rows):
 
 
 if __name__ == "__main__":  # cek cepat parser: python importer.py
-    import io
     wb = openpyxl.Workbook(); ws = wb.active
     ws.append(["PLU", "HARGA", "NAMA BARANG", "SUPPLIER", "GROUP DEPT", "STATUS", "KUU"])
     ws.append(["01001", "Rp 1.250.000,50", "A", "S", "OSA", "AKTIF", "SCZ1"])
@@ -137,5 +157,10 @@ if __name__ == "__main__":  # cek cepat parser: python importer.py
     b = io.BytesIO(); wb.save(b); b.seek(0)
     r, e = load(b)
     assert [x["harga"] for x in r] == [Decimal("1250000.50"), Decimal("5000"), None], r
+    for txt, want in [("2,325,000.00", "2325000.00"), ("1.00", "1.00"), ("500,000.00", "500000.00"),
+                      ("Rp 1.250.000", "1250000"), ("1.250.000,50", "1250000.50"), ("2,325", "2325"),
+                      ("1,5", "1.5"), ("-", None), ("", None)]:
+        got = _price(txt)
+        assert got == (Decimal(want) if want else None), (txt, got)
     assert r[0]["plu"] == "01001" and r[1]["active"] is False and not e
     print("ok")

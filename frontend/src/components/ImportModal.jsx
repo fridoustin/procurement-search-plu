@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Upload, X, FileSpreadsheet, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 
-const MAX_BYTES = 10 * 1024 * 1024 // samakan dengan MAX_XLSX_SIZE di backend
+const MAX_BYTES = 20 * 1024 * 1024
 const fmtSize = (b) => (b >= 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`)
 
 export default function ImportModal({
@@ -58,7 +58,7 @@ export default function ImportModal({
             </div>
             <div>
               <h3 className="font-bold text-base leading-tight">Import Data Master PLU</h3>
-              <p className="text-xs text-red-100">Upload file Excel (.xlsx)</p>
+              <p className="text-xs text-red-100">Upload file Excel atau CSV (.xlsx, .csv)</p>
             </div>
           </div>
           <button
@@ -125,7 +125,7 @@ export default function ImportModal({
               <input
                 ref={inputRef}
                 type="file"
-                accept=".xlsx"
+                accept=".xlsx,.csv"
                 onChange={onPick}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
@@ -135,7 +135,7 @@ export default function ImportModal({
                   <p className="text-xs font-bold text-slate-800 break-all">{file.name}</p>
                   <p className={`text-[11px] mt-0.5 ${tooBig ? 'text-red-600 font-semibold' : 'text-slate-500'}`}>
                     {fmtSize(file.size)}
-                    {tooBig && ' — melebihi batas 10 MB'}
+                    {tooBig && ' — melebihi batas 20 MB'}
                   </p>
                   <p className="text-[10px] text-slate-400 mt-1">Klik untuk mengganti file</p>
                 </>
@@ -143,7 +143,7 @@ export default function ImportModal({
                 <>
                   <FileSpreadsheet className="w-10 h-10 text-[#305D9F] mx-auto mb-2 opacity-80" />
                   <p className="text-xs font-medium text-slate-700">Klik atau seret file Excel ke area ini</p>
-                  <p className="text-[10px] text-slate-400 mt-1">Format yang didukung: .xlsx (maks 10 MB)</p>
+                  <p className="text-[10px] text-slate-400 mt-1">Format yang didukung: .xlsx, .csv (maks 20 MB)</p>
                 </>
               )}
             </div>
