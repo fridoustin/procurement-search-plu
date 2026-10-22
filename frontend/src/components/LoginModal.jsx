@@ -3,7 +3,7 @@ import axios from 'axios'
 import { Lock, User, KeyRound, X, Loader2, Eye, EyeOff } from 'lucide-react'
 import LoginFeedback from './LoginFeedback'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = '/api'
 
 export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
   const [username, setUsername] = useState('')
