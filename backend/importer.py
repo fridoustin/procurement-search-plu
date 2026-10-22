@@ -53,17 +53,22 @@ def _csv_rows(data: bytes):
     return csv.reader(io.StringIO(text, newline=""), delimiter=delim)
 
 
+def _zero_width(fmt):
+    """Lebar format nol di depan: "00000000" -> 8, "[$-409]00000000_)" -> 8, "General" -> 0."""
+    sec = fmt.split(";")[0]
+    sec = re.sub(r'"[^"]*"|\\.|\[[^\]]*\]|_.|\*.', "", sec)  # buang teks kutip, escape, [warna/locale], spasi
+    return len(sec) if re.fullmatch(r"0+", sec) else 0
+
+
 def _padded(cell):
     """Angka yang di Excel tampil dengan nol di depan (format sel 00000000) dikembalikan jadi teks bernol:
     nilai tersimpan 1234 + format 00000000 -> "00001234". Sel lain tidak diubah."""
     v = cell.value
-    fmt = (cell.number_format or "").split(";")[0]
-    if isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0 and float(v).is_integer() and re.fullmatch(r"0+", fmt):
+    if isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0 and float(v).is_integer():
         s = str(int(v))
-        if len(s) < len(fmt):
-            return s.zfill(len(fmt))
+        if len(s) < (w := _zero_width(cell.number_format or "")):
+            return s.zfill(w)
     return v
-
 
 def _sheet_rows(file_stream):
     """Baris-baris data. .xlsx (file zip, diawali "PK") dibaca dengan openpyxl; selain itu dianggap CSV."""
