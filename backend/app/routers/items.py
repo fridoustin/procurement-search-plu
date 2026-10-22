@@ -120,7 +120,10 @@ def export_items(
 def get_stats():
     with get_db(row_factory=dict_row) as c:
         out = c.execute("""
-            SELECT count(*) AS total, count(DISTINCT plu) AS plu, count(DISTINCT supplier) AS suppliers,
+            SELECT count(*) AS total, 
+                   count(DISTINCT plu) AS plu, 
+                   count(DISTINCT supplier) AS suppliers,
+                   count(DISTINCT supplier) FILTER (WHERE active) AS active_suppliers,
                    count(*) FILTER (WHERE active) AS active,
                    count(*) FILTER (WHERE NOT active) AS inactive,
                    count(*) FILTER (WHERE created_at::date = current_date) AS new_today,

@@ -20,6 +20,9 @@ export default function StatsWidget({ stats }) {
         <div className="min-w-0">
           <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Total Supplier</p>
           <h3 className="text-base sm:text-xl font-black text-slate-900 mt-0.5">{stats.suppliers}</h3>
+          <p className="text-[9px] sm:text-[10px] font-bold text-[#305D9F] mt-0.5 truncate">
+            {stats.active_suppliers} Aktif
+          </p>
         </div>
         <div className="p-2 sm:p-2.5 bg-blue-50 text-[#305D9F] rounded-xl shrink-0 ml-1">
           <Users className="w-4 h-4 sm:w-5 sm:h-5" />
