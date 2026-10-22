@@ -9,7 +9,7 @@ import DataTable from './components/DataTable'
 import ImportModal from './components/ImportModal'
 import LoginModal from './components/LoginModal'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = '/api'
 const PAGE_LIMIT = 20
 
 export default function App() {
