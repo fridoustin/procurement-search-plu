@@ -10,13 +10,14 @@ ALIASES = {
     "plu": ["PLU"],
     "name": ["NAMA ITEM", "NAMA BARANG"],
     "supplier": ["NAMA SUPPLIER", "SUPPLIER"],
-    "dept": ["GROUP DEPT"],
+    "dept": ["GROUP DEPT", "DEPT"],
     "status": ["STATUS"],
-    "kuu": ["KODE USAHA", "KUU"],
+    "kuu": ["KODE USAHA", "KUU", "KUU CABANG"],
     "kategori": ["KATEGORI INV", "KATEGORI"],  # opsional
-    "harga": ["HARGA"],                        # opsional
+    "harga": ["HARGA"],
 }
-REQUIRED = ["plu", "name", "supplier", "dept", "status", "kuu"]
+# Wajib ada (kolom DAN isi tiap baris): PLU, nama, supplier, KUU, harga. Dept, status, kategori boleh kosong/tidak ada.
+REQUIRED = ["plu", "name", "supplier", "kuu", "harga"]
 STATUS = {"T": True, "AKTIF": True, "F": False, "TIDAK AKTIF": False}
 
 
@@ -78,57 +79,57 @@ def load(file_stream):
             v = int(v)  # PLU angka: 1001.0 -> "1001", bukan "1001.0"
         return str(v).strip() if v is not None else ""
 
+    def opt(row, field):  # kolom tidak ada atau selnya kosong -> None -> data di DB tidak disentuh
+        return text(row, field) or None
+
     rows, errors = [], []
     for row_idx, row in enumerate(it, start=2):
         if not any(row):
             continue
         try:
-            plu, supplier, kuu = text(row, "plu"), text(row, "supplier"), text(row, "kuu")
-            if not plu or not supplier or not kuu:
-                errors.append(f"Baris {row_idx}: PLU, Supplier, atau Kode Usaha kosong, dilewati.")
+            plu, supplier, kuu, name = (text(row, f) for f in ("plu", "supplier", "kuu", "name"))
+            harga = _price(raw(row, "harga"))
+            required = {"PLU": plu, "Nama": name, "Supplier": supplier, "Kode Usaha": kuu, "Harga": harga}
+            if empty := [k for k, v in required.items() if v in ("", None)]:
+                errors.append(f"Baris {row_idx}: {', '.join(empty)} kosong atau tidak valid, dilewati.")
                 continue
-            status = STATUS.get(text(row, "status").upper())
-            if status is None:
+            status = text(row, "status").upper()
+            if status and status not in STATUS:
                 errors.append(f"Baris {row_idx}: Status '{text(row, 'status')}' tidak dikenali (T/F atau AKTIF/TIDAK AKTIF), dilewati.")
                 continue
             rows.append({
-                "plu": plu,
-                "name": text(row, "name"),
-                "supplier": supplier,
-                "dept": text(row, "dept"),
-                "active": status,
-                "kuu": kuu,
-                "kategori": text(row, "kategori") if "kategori" in col else None,  # None = kolom tidak ada -> DB tidak disentuh
-                "harga": _price(raw(row, "harga")),
+                "plu": plu, "name": name, "supplier": supplier, "kuu": kuu, "harga": harga,
+                "dept": opt(row, "dept"),
+                "kategori": opt(row, "kategori"),
+                "active": STATUS.get(status),  # None = status kosong/tidak ada
             })
         except Exception as e:
             errors.append(f"Baris {row_idx}: Gagal diproses ({e})")
     return rows, errors
 
 
-# harga_sebelum hanya terisi saat harga_update benar-benar berubah.
+# harga_sebelum hanya terisi saat harga benar-benar berubah.
 # Baris tanpa perubahan apa pun tidak disentuh (updated_at tetap) -> "Update Hari Ini" akurat.
+# dept/status/kategori yang kosong (None) tidak menimpa data yang sudah ada;
+# untuk item baru: dept '' dan status Tidak Aktif.
 UPSERT = """
-    INSERT INTO items (plu, name, supplier, dept, active, kuu, kategori, harga_update, created_at, updated_at)
-    VALUES (%(plu)s, %(name)s, %(supplier)s, %(dept)s, %(active)s, %(kuu)s, %(kategori)s, %(harga)s,
-            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    INSERT INTO items (plu, name, supplier, kuu, dept, active, kategori, harga_update, created_at, updated_at)
+    VALUES (%(plu)s, %(name)s, %(supplier)s, %(kuu)s, COALESCE(%(dept)s, ''), COALESCE(%(active)s, FALSE),
+            %(kategori)s, %(harga)s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     ON CONFLICT (plu, supplier, kuu) DO UPDATE SET
         name = EXCLUDED.name,
-        dept = EXCLUDED.dept,
-        active = EXCLUDED.active,
-        kategori = COALESCE(EXCLUDED.kategori, items.kategori),
+        dept = COALESCE(%(dept)s, items.dept),
+        active = COALESCE(%(active)s, items.active),
+        kategori = COALESCE(%(kategori)s, items.kategori),
         harga_sebelum = CASE
-            WHEN EXCLUDED.harga_update IS NOT NULL
-             AND items.harga_update IS NOT NULL
-             AND EXCLUDED.harga_update <> items.harga_update
+            WHEN items.harga_update IS NOT NULL AND items.harga_update <> EXCLUDED.harga_update
             THEN items.harga_update ELSE items.harga_sebelum END,
-        harga_update = COALESCE(EXCLUDED.harga_update, items.harga_update),
+        harga_update = EXCLUDED.harga_update,
         updated_at = CURRENT_TIMESTAMP
     WHERE (items.name, items.dept, items.active, items.kategori, items.harga_update)
           IS DISTINCT FROM
-          (EXCLUDED.name, EXCLUDED.dept, EXCLUDED.active,
-           COALESCE(EXCLUDED.kategori, items.kategori),
-           COALESCE(EXCLUDED.harga_update, items.harga_update))
+          (EXCLUDED.name, COALESCE(%(dept)s, items.dept), COALESCE(%(active)s, items.active),
+           COALESCE(%(kategori)s, items.kategori), EXCLUDED.harga_update)
     RETURNING (xmax = 0) AS is_inserted;
 """
 
@@ -149,18 +150,32 @@ def upsert(conn, rows):
 
 
 if __name__ == "__main__":  # cek cepat parser: python importer.py
-    wb = openpyxl.Workbook(); ws = wb.active
-    ws.append(["PLU", "HARGA", "NAMA BARANG", "SUPPLIER", "GROUP DEPT", "STATUS", "KUU"])
-    ws.append(["01001", "Rp 1.250.000,50", "A", "S", "OSA", "AKTIF", "SCZ1"])
-    ws.append(["0002", 5000, "B", "S", "OSA", "TIDAK AKTIF", "SCZ1"])
-    ws.append(["0003", None, "C", "S", "OSA", "AKTIF", "SCZ1"])
-    b = io.BytesIO(); wb.save(b); b.seek(0)
-    r, e = load(b)
-    assert [x["harga"] for x in r] == [Decimal("1250000.50"), Decimal("5000"), None], r
+    def mk(rows):
+        wb = openpyxl.Workbook(); ws = wb.active
+        for r in rows:
+            ws.append(r)
+        b = io.BytesIO(); wb.save(b); b.seek(0)
+        return load(b)
+
+    r, e = mk([["PLU", "HARGA", "NAMA BARANG", "SUPPLIER", "GROUP DEPT", "STATUS", "KUU"],
+               ["01001", "Rp 1.250.000,50", "A", "S", "OSA", "AKTIF", "SCZ1"],
+               ["0002", 5000, "B", "S", "OSA", "TIDAK AKTIF", "SCZ1"],
+               ["0003", None, "C", "S", "OSA", "AKTIF", "SCZ1"],        # harga kosong -> error
+               ["0004", 1, "", "S", "OSA", "AKTIF", "SCZ1"]])           # nama kosong -> error
+    assert [x["harga"] for x in r] == [Decimal("1250000.50"), Decimal("5000")], r
+    assert r[0]["plu"] == "01001" and r[1]["active"] is False and len(e) == 2, e
+    # hanya kolom wajib: dept/status/kategori tidak ada -> None (DB tidak disentuh)
+    r, e = mk([["PLU", "NAMA ITEM", "NAMA SUPPLIER", "KODE USAHA", "HARGA"], ["1", "A", "S", "K", 10]])
+    assert not e and (r[0]["dept"], r[0]["active"], r[0]["kategori"]) == (None, None, None), r
+    # kolom wajib hilang -> ditolak
+    try:
+        mk([["PLU", "NAMA ITEM", "NAMA SUPPLIER", "KODE USAHA"], ["1", "A", "S", "K"]])
+        raise SystemExit("harusnya ValueError")
+    except ValueError:
+        pass
     for txt, want in [("2,325,000.00", "2325000.00"), ("1.00", "1.00"), ("500,000.00", "500000.00"),
                       ("Rp 1.250.000", "1250000"), ("1.250.000,50", "1250000.50"), ("2,325", "2325"),
                       ("1,5", "1.5"), ("-", None), ("", None)]:
         got = _price(txt)
         assert got == (Decimal(want) if want else None), (txt, got)
-    assert r[0]["plu"] == "01001" and r[1]["active"] is False and not e
     print("ok")
